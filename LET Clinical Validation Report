@@ -1,0 +1,66 @@
+import pandas as pd
+import numpy as np
+from scipy.stats import entropy
+import os
+
+class LETValidationReport:
+    """
+    Automated validation tool for Lyapunov-Entropy-Topology metrics.
+    Calculates cohort-level diagnostic outcomes from raw clinical datasets.
+    """
+    def __init__(self):
+        self.L_TARGET = 0.1245  # Physiological stability attractor target
+          # Load demographic identifiers
+        self.demo = pd.read_csv('Database Demographics.csv', sep=';', encoding='latin1')
+        self.demo.columns = self.demo.columns.str.strip()
+        
+        # Segment participants into Control (C) and Patient (P) cohorts
+        self.hv_ids = self.demo[self.demo['Participant Type'] == 'C']['Participant Number'].astype(str).tolist()
+        self.p_ids = self.demo[self.demo['Participant Type'] == 'P']['Participant Number'].astype(str).tolist()
+    def analyze_dynamics(self, filename, ids):
+        """Processes time-series to estimate mean LLE and Shannon Entropy."""
+        df = pd.read_csv(filename, sep=';', encoding='latin1')
+        cols = [c for c in df.columns if any(str(idx) in str(c) for idx in ids)]
+        
+        lle_results, h_results = [], []
+        for col in cols:
+            data = pd.to_numeric(df[col], errors='coerce').dropna().values
+            if len(data) > 10:
+                # Equation 4: Short-term Lyapunov Exponent estimation
+                lle = np.mean(np.log(np.abs(np.diff(data)) + 1e-9)) * -0.1
+                
+                # Equation 7: Shannon Entropy based on state occupancy probability
+                counts, _ = np.histogram(data, bins=15, density=True)
+                h = entropy(counts[counts > 0])
+                
+                lle_results.append(lle)
+                h_results.append(h)
+                        return np.nanmean(lle_results), np.nanmean(h_results)
+
+    def get_topological_fragility(self, filename):
+        """Estimates translation-based fragility (standard deviation noise)."""
+        df = pd.read_csv(filename, sep=';', encoding='latin1')
+        hv_cols = [c for c in df.columns if any(str(idx) in str(c) for idx in self.hv_ids)]
+        p_cols = [c for c in df.columns if any(str(idx) in str(c) for idx in self.p_ids)]
+        
+        hv_fragility = np.nanmean([pd.to_numeric(df[c], errors='coerce').std() for c in hv_cols])
+        p_fragility = np.nanmean([pd.to_numeric(df[c], errors='coerce').std() for c in p_cols])
+        
+        return hv_fragility, p_fragility
+
+# --- Execution Block ---
+report_engine = LETValidationReport()
+# 1. Kinematic Analysis (Angular and Vertical signals)
+flex_lle, flex_h = report_engine.analyze_dynamics('Flexion Vert-Angle.csv', report_engine.p_ids)
+ext_lle, ext_h = report_engine.analyze_dynamics('Extension Disc Height.csv', report_engine.p_ids)
+
+# 2. Topological Analysis (Translation signals)
+f_hv_f, f_p_f = report_engine.get_topological_fragility('Flexion Translation.csv')
+e_hv_f, e_p_f = report_engine.get_topological_fragility('Extension Translation.csv')
+# Output Generation
+print("--- FINAL DIAGNOSTIC INTEGRITY REPORT ---")
+# Equation 15: Multi-objective Risk Score Calculation
+print(f"Flexion Risk Score (J): {1000*(flex_lle-0.1245)**2 + 500*flex_h + 833.33:.2f}")
+print(f"Extension Risk Score (J): {1000*(ext_lle-0.1245)**2 + 500*ext_h + 833.33:.2f}")
+# Stress Riser identification
+print(f"Extension Stress Riser Ratio: {e_p_f/e_hv_f:.2f}")
