@@ -1,83 +1,115 @@
 import pandas as pd
 import numpy as np
-import os
+import matplotlib.pyplot as plt
 from scipy.stats import entropy
+import os
 from IPython.display import display, Markdown
 class LETFramework:
+    """Core computational engine for the Lyapunov-Entropy-Topology framework."""
     def __init__(self, movement='Flexion'):
-        self.L_TARGET = 0.1245  # Healthy stability attractor (λ_max)
-        self.A_MIN = 0.05       # Functional Activity Constraint
+        self.L_TARGET = 0.1245
+        self.A_MIN = 0.05
         self.movement = movement
 
-        # 1. File initialization
+        # Data files
         self.kin_file = f'{self.movement} Vert-Angle.csv'
         self.demo_file = 'Database Demographics.csv'
-
-        if not os.path.exists(self.kin_file) or not os.path.exists(self.demo_file):
-            raise FileNotFoundError(f"Missing data files: {self.kin_file} or {self.demo_file}")
-
-        # Data loading using semicolon separator and latin1 encoding for compatibility
+        # Load data with compatibility settings
         self.kin_df = pd.read_csv(self.kin_file, sep=';', encoding='latin1')
         self.demo_df = pd.read_csv(self.demo_file, sep=';', encoding='latin1')
-        # Clean column headers
+        # Cleanup headers
         self.kin_df.columns = self.kin_df.columns.str.strip()
         self.demo_df.columns = self.demo_df.columns.str.strip()
-
-        # 2. Group Identification
-        # 'C' denotes Control group, 'P' denotes Patient group
+        # Group Identification (C: Controls, P: Patients)
         self.hv_ids = self.demo_df[self.demo_df['Participant Type'] == 'C']['Participant Number'].astype(str).tolist()
         self.p_ids = self.demo_df[self.demo_df['Participant Type'] == 'P']['Participant Number'].astype(str).tolist()
 
-        # 3. Column mapping for kinematic data
+        # Mapping Columns
         self.hv_cols = [c for c in self.kin_df.columns if any(str(hid) in str(c) for hid in self.hv_ids)]
         self.p_cols = [c for c in self.kin_df.columns if any(str(pid) in str(c) for pid in self.p_ids)]
 
-        print(f"Linked dataset for {self.movement}: {self.kin_file}")
-        print(f"Participant count: {len(self.hv_cols)} Healthy (HV), {len(self.p_cols)} Patients (P)")
+        print(f"Dataset Linked: {self.movement}")
+        print(f"Population: {len(self.hv_cols)} Healthy, {len(self.p_cols)} Patients")
 
     def compute_lle(self, series):
-        """Calculates short-term Largest Lyapunov Exponent per Eq 4."""
+        """Estimation of the short-term Largest Lyapunov Exponent."""
         data = np.array(series.dropna())
-        if len(data) < 15 or np.var(data) < self.A_MIN:
+        if len(data) < 15 or np.var(data) < self.A_MIN: 
             return 0.0
-                divergence = np.log(np.abs(np.diff(data)) + 1e-9)
+        divergence = np.log(np.abs(np.diff(data)) + 1e-9)
         return np.mean(divergence) * -0.1
+
     def compute_entropy(self, series):
-        """Calculates Shannon Entropy in nats per Eq 7."""
+        """Calculation of Shannon Entropy (nats)."""
         data = series.dropna()
         if len(data) == 0: 
             return 0.0
         counts, _ = np.histogram(data, bins=20, density=True)
         return entropy(counts[counts > 0])
-
     def run_analysis(self):
-        """Standard diagnostic procedure for LET framework."""
+        """Executes LLE and Entropy cohort analysis."""
         hv_metrics = [(self.compute_lle(self.kin_df[c]), self.compute_entropy(self.kin_df[c])) for c in self.hv_cols]
         p_metrics = [(self.compute_lle(self.kin_df[c]), self.compute_entropy(self.kin_df[c])) for c in self.p_cols]
 
-        # Calculate group-level averages
-        hv_l = np.mean([m[0] for m in hv_metrics]) if hv_metrics else 0.0
-        hv_h = np.mean([m[1] for m in hv_metrics]) if hv_metrics else 0.0
-        p_l = np.mean([m[0] for m in p_metrics]) if p_metrics else 0.0
-        p_h = np.mean([m[1] for m in p_metrics]) if p_metrics else 0.0
-
-        report = {
+        report = pd.DataFrame({
             "Regime": ["Ordered (Healthy)", "Unstable (Pathological)"],
-            "LLE (lambda_max)": [hv_l, p_l],
-            "Shannon Entropy (H)": [hv_h, p_h],
-            "Status": ["Stability Corridor", "ASD Risk"]
-        }
-        return pd.DataFrame(report)
-# --- Main execution ---
-try:
-    analysis = LETFramework(movement='Flexion')
-    results = analysis.run_analysis()
+            "LLE (lambda_max)": [np.mean([m[0] for m in hv_metrics]), np.mean([m[0] for m in p_metrics])],
+            "Shannon Entropy (H)": [np.mean([m[1] for m in hv_metrics]), np.mean([m[1] for m in p_metrics])]
+        })
+        return report
 
-    display(Markdown(f"### Results for {analysis.movement}"))
-    display(results)
-    # Risk Score J calculation per Eq 15
-    p_data = results.iloc[1]
-    risk_value = 1000 * (p_data["LLE (lambda_max)"] - 0.1245)**2 + 500 * p_data["Shannon Entropy (H)"] + 100 * (1/0.12)
-    print(f"Calculated PSO Risk Score (J): {risk_value:.2f}")
-except Exception as error:
-    print(f"An error occurred during analysis: {error}")
+class LETVisualizer(LETFramework):
+    """Extension class for visualization and topological fragility analysis."""
+    def generate_manifold_plot(self, report):
+        """Generates the LET Diagnostic Manifold scatter plot."""
+        plt.figure(figsize=(10, 6))
+        colors = ['#2ecc71', '#e74c3c']
+        markers = ['o', 's']
+
+        for i, row in report.iterrows():
+            plt.scatter(row['LLE (lambda_max)'], row['Shannon Entropy (H)'],
+                        label=row['Regime'], c=colors[i], s=200, marker=markers[i], edgecolors='black', zorder=3)
+        # Theoretical Stability Target
+        plt.scatter(0.1245, 0.98, c='gold', s=300, marker='*', label='Healthy Attractor', edgecolors='black', zorder=4)
+
+        # Visual representation of the Stability Corridor
+        circle = plt.Circle((0.1245, 0.98), 0.15, color='gold', fill=True, alpha=0.1, label='Stability Corridor')
+        plt.gca().add_patch(circle)
+
+        plt.xlabel('Dynamical Instability (LLE - λ_max)')
+        plt.ylabel('Informational Complexity (Entropy - H)')
+        plt.title(f'LET Diagnostic Manifold: {self.movement}')
+        plt.legend()
+        plt.grid(True, linestyle='--', alpha=0.6)
+        plt.show()
+
+    def analyze_topological_fragility(self):
+        """Calculates topological fragility metrics from Translation data."""
+        trans_file = f'{self.movement} Translation.csv'
+        if not os.path.exists(trans_file):
+            return "Translation file not found."
+
+        df_t = pd.read_csv(trans_file, sep=';', encoding='latin1')
+        df_t.columns = df_t.columns.str.strip()
+
+        hv_t_cols = [c for c in df_t.columns if any(hid in str(c) for hid in self.hv_ids)]
+        p_t_cols = [c for c in df_t.columns if any(pid in str(c) for pid in self.p_ids)]
+
+        hv_frag = np.mean([df_t[c].std() for c in hv_t_cols if df_t[c].std() > 0])
+        p_frag = np.mean([df_t[c].std() for c in p_t_cols if df_t[c].std() > 0])
+
+        return pd.DataFrame({
+            "Metric": ["Healthy Fragility", "Patient Fragility"],
+            "Translation Noise (mm)": [hv_frag, p_frag],
+            "Stress Riser Ratio": [1.0, p_frag / hv_frag]
+        })
+# --- Execution ---
+try:
+    viz = LETVisualizer(movement='Flexion')
+    analysis_report = viz.run_analysis()
+    viz.generate_manifold_plot(analysis_report)
+    fragility_report = viz.analyze_topological_fragility()
+    display(analysis_report)
+    display(fragility_report)
+except Exception as e:
+    print(f"Process Error: {e}")
