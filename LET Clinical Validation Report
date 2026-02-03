@@ -10,13 +10,15 @@ class LETValidationReport:
     """
     def __init__(self):
         self.L_TARGET = 0.1245  # Physiological stability attractor target
-          # Load demographic identifiers
+        
+        # Load demographic identifiers
         self.demo = pd.read_csv('Database Demographics.csv', sep=';', encoding='latin1')
         self.demo.columns = self.demo.columns.str.strip()
         
         # Segment participants into Control (C) and Patient (P) cohorts
         self.hv_ids = self.demo[self.demo['Participant Type'] == 'C']['Participant Number'].astype(str).tolist()
         self.p_ids = self.demo[self.demo['Participant Type'] == 'P']['Participant Number'].astype(str).tolist()
+
     def analyze_dynamics(self, filename, ids):
         """Processes time-series to estimate mean LLE and Shannon Entropy."""
         df = pd.read_csv(filename, sep=';', encoding='latin1')
@@ -35,7 +37,8 @@ class LETValidationReport:
                 
                 lle_results.append(lle)
                 h_results.append(h)
-                        return np.nanmean(lle_results), np.nanmean(h_results)
+                
+        return np.nanmean(lle_results), np.nanmean(h_results)
 
     def get_topological_fragility(self, filename):
         """Estimates translation-based fragility (standard deviation noise)."""
@@ -47,9 +50,9 @@ class LETValidationReport:
         p_fragility = np.nanmean([pd.to_numeric(df[c], errors='coerce').std() for c in p_cols])
         
         return hv_fragility, p_fragility
-
 # --- Execution Block ---
 report_engine = LETValidationReport()
+
 # 1. Kinematic Analysis (Angular and Vertical signals)
 flex_lle, flex_h = report_engine.analyze_dynamics('Flexion Vert-Angle.csv', report_engine.p_ids)
 ext_lle, ext_h = report_engine.analyze_dynamics('Extension Disc Height.csv', report_engine.p_ids)
@@ -62,5 +65,6 @@ print("--- FINAL DIAGNOSTIC INTEGRITY REPORT ---")
 # Equation 15: Multi-objective Risk Score Calculation
 print(f"Flexion Risk Score (J): {1000*(flex_lle-0.1245)**2 + 500*flex_h + 833.33:.2f}")
 print(f"Extension Risk Score (J): {1000*(ext_lle-0.1245)**2 + 500*ext_h + 833.33:.2f}")
+
 # Stress Riser identification
 print(f"Extension Stress Riser Ratio: {e_p_f/e_hv_f:.2f}")
