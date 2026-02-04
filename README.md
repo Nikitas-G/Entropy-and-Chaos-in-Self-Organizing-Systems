@@ -25,6 +25,9 @@ Validates the PSO-based navigability of the diagnostic landscape.
 LET-Spine: Lyapunov-Entropy-Topology Framework for Cervical Stability Analysis
 Implementation of the LET (Lyapunov-Entropy-Topology) diagnostic suite for quantifying self-organization and structural integrity in cervical spine kinematics. This framework maps nonlinear dynamical stability (λmax), informational complexity (H), and spectral graph connectivity (T) onto a unified manifold to identify pathological regime shifts and Adjacent Segment Disease (ASD) risk factors.
 
+LET-Heuristic-Calibration: Scale-Parity Weighting for Multi-Dimensional Stability Metrics
+A computational utility for calibrating weighting coefficients in the Lyapunov-Entropy-Topology (LET) Risk Score (J). This script implements a heuristic scale-parity approach to normalize contributions from nonlinear dynamical stability (λmax), network topology entropy (Hnet), and structural connectivity (λ2). Validated using the Branney-Breen cervical spine kinematics dataset, the algorithm identifies the "Stability Gap" between physiological and pathological regimes while ensuring robustness through a weight sensitivity audit.
+
 Key Empirical Results
 Validation using the Branney-Breen dataset identified a distinct pathological signature:
 Global Risk Score (J): 2351.55±4.89.
