@@ -12,12 +12,12 @@ Topological Fragility (T): Structural integrity analysis via the Stress Riser Ra
 Repository Architecture
 The suite consists of two primary computational modules:
 
-LET_Integrated_Research_Suite.py
+LET_Diagnostic_Framework
 Executes state-space reconstruction using time-delay embedding.
 Projects the Dynamic Integrity State Vector M(t) onto the diagnostic landscape.
 Identifies the "Stability Gap" between the physiological attractor and pathological states.
 
-LET_Stochastic_Validator.py
+LET Clinical Validation Report
 Performs Monte Carlo bootstrapping (n=1,000) for statistical robustness.
 Calculates the Global Risk Score (J) with associated confidence intervals.
 Validates the PSO-based navigability of the diagnostic landscape.
