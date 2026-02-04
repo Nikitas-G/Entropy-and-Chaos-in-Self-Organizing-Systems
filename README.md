@@ -22,6 +22,9 @@ Performs Monte Carlo bootstrapping (n=1,000) for statistical robustness.
 Calculates the Global Risk Score (J) with associated confidence intervals.
 Validates the PSO-based navigability of the diagnostic landscape.
 
+LET-Spine: Lyapunov-Entropy-Topology Framework for Cervical Stability Analysis
+Implementation of the LET (Lyapunov-Entropy-Topology) diagnostic suite for quantifying self-organization and structural integrity in cervical spine kinematics. This framework maps nonlinear dynamical stability (λmax), informational complexity (H), and spectral graph connectivity (T) onto a unified manifold to identify pathological regime shifts and Adjacent Segment Disease (ASD) risk factors.
+
 Key Empirical Results
 Validation using the Branney-Breen dataset identified a distinct pathological signature:
 Global Risk Score (J): 2351.55±4.89.
