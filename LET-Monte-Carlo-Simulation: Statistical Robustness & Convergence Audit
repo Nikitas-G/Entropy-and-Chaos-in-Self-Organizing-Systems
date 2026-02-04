@@ -1,0 +1,72 @@
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# -- 1. Framework Calibration (Section 3.8 / Eq. 15) -
+W1, W2, W3 = 2640.0, 617.0, 500.0  # Scale-Parity Weights
+LAMBDA_TARGET = 0.1245             # Physiological Attractor
+ITERATIONS = 1000                  # Monte Carlo Sample Size
+
+# --- 2. Empirical Distributions (Table 1 & Results) ---
+# Format: (Mean, Standard Deviation)
+# Healthy Cohort (HV)
+hv_stats = {
+    'lambda': (0.5597, 0.02), 
+    'h_net':  (0.81, 0.04), 
+    't_ratio': (1.0, 0.05)
+}
+# Patient Cohort (P) - Flexion-dominated Pathological State
+p_stats = {
+    'lambda': (0.5626, 0.05), 
+    'h_net':  (0.98, 0.06), 
+    't_ratio': (0.383, 0.04)
+}
+
+def compute_j(l, h, t):
+    """Calculates the Risk Score J based on the LET quadratic formulation."""
+    return W1 * (l - LAMBDA_TARGET)**2 + W2 * h + W3 * (1.0 / t)
+
+# --- 3. Monte Carlo Bootstrapping Execution ---
+np.random.seed(42) # Ensuring reproducibility
+
+j_hv_dist = []
+j_p_dist = []
+
+for _ in range(ITERATIONS):
+    # Stochastic sampling from Healthy distribution
+    l_h = np.random.normal(hv_stats['lambda'][0], hv_stats['lambda'][1])
+    h_h = np.random.normal(hv_stats['h_net'][0], hv_stats['h_net'][1])
+    t_h = np.random.normal(hv_stats['t_ratio'][0], hv_stats['t_ratio'][1])
+    
+    # Stochastic sampling from Patient distribution
+    l_p = np.random.normal(p_stats['lambda'][0], p_stats['lambda'][1])
+    h_p = np.random.normal(p_stats['h_net'][0], p_stats['h_net'][1])
+    t_p = np.random.normal(p_stats['t_ratio'][0], p_stats['t_ratio'][1])
+    
+    # Accumulate results
+    j_hv_dist.append(compute_j(l_h, h_h, t_h))
+    j_p_dist.append(compute_j(l_p, h_p, t_p))
+
+# --- 4. Statistical Analysis & Reporting ---
+print("-" * 45)
+print(f"MONTE CARLO AUDIT REPORT ({ITERATIONS} ITERATIONS)")
+print("-" * 45)
+print(f"Healthy J (Mean ± SD): {np.mean(j_hv_dist):.2f} ± {np.std(j_hv_dist):.2f}")
+print(f"Patient J (Mean ± SD): {np.mean(j_p_dist):.2f} ± {np.std(j_p_dist):.2f}")
+print(f"Stability Gap Mean:    {np.mean(j_p_dist) - np.mean(j_hv_dist):.2f}")
+print("-" * 45)
+
+# --- 5. Visualization (Figure 6 Replica) ---
+plt.figure(figsize=(10, 6))
+sns.histplot(j_hv_dist, color='#2E7D32', kde=True, label='Healthy Baseline', alpha=0.6)
+sns.histplot(j_p_dist, color='#C62828', kde=True, label='Pathological State', alpha=0.6)
+
+plt.axvline(np.mean(j_hv_dist), color='#1B5E20', linestyle='--', linewidth=1.5)
+plt.axvline(np.mean(j_p_dist), color='#B71C1C', linestyle='--', linewidth=1.5)
+plt.title('Monte Carlo Validation: Risk Score (J) Convergence Analysis')
+plt.xlabel('Global Risk Score (J)')
+plt.ylabel('Frequency (Stochastic Realizations)')
+plt.legend()
+plt.grid(axis='y', alpha=0.3)
+plt.tight_layout()
+plt.show()
