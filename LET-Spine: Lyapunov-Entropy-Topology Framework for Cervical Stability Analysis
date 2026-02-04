@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import numpy as np
 
-# Global visualization settings (Academic Serif Style)
+# Global visualization settings
 plt.rcParams.update({
     "font.family": "serif",
     "axes.labelsize": 11,
@@ -11,70 +11,47 @@ plt.rcParams.update({
     "ytick.labelsize": 9,
     "axes.titlesize": 13
 })
-
-# Core Metrics: [Target, Baseline, Pathological]
-# Coordinates derived from Branney-Breen dataset analysis
-lyapunov_lambda = np.array([0.1245, 0.5597, 0.5626]) # Dynamical Instability
-entropy_h = np.array([2.6600, 2.6608, 2.6523])       # Informational Complexity
-topological_t = np.array([1.0, 1.0, 0.383])         # Structural Integrity Ratio
+# Refined Metrics based on Scale-Parity Calibration
+# Order: [Physiological Target, Healthy Baseline, Pathological State]
+lyapunov_lambda = np.array([0.1245, 0.5597, 0.5626]) # cite: 183, 273
+entropy_h_net = np.array([0.7937, 0.8100, 0.9800])  # cite: 183, 340
+topological_t = np.array([1.0, 1.0, 0.3831])        # cite: 183, 260
 
 regimes = ['Physiological Target', 'Healthy Baseline', 'Pathological State']
-palette = ['#FFC107', '#1B5E20', '#B71C1C'] # Technical Amber, Deep Green, Deep Red
+palette = ['#FFC107', '#1B5E20', '#B71C1C'] 
 
 fig = plt.figure(figsize=(10, 7), dpi=300)
 ax = fig.add_subplot(111, projection='3d')
 
-# Configure clean-room engineering background
 ax.xaxis.pane.fill = ax.yaxis.pane.fill = ax.zaxis.pane.fill = False
-ax.xaxis.pane.set_edgecolor('white')
-ax.yaxis.pane.set_edgecolor('white')
-ax.zaxis.pane.set_edgecolor('white')
 ax.grid(True, linestyle=':', alpha=0.4)
 for i in range(len(lyapunov_lambda)):
-    # Render Primary State Vectors
-    ax.scatter(lyapunov_lambda[i], entropy_h[i], topological_t[i], 
-               s=280 if i != 2 else 180,
+    # Render State Vectors
+    ax.scatter(lyapunov_lambda[i], entropy_h_net[i], topological_t[i], 
+               s=280 if i == 0 else 180,
                color=palette[i], label=regimes[i], 
-               alpha=0.95, edgecolors='black', linewidths=0.7, depthshade=True)
+               alpha=0.95, edgecolors='black', linewidths=0.7)
 
-    # Axial Projection Lines (Drop Lines)
+    # Vertical Drop Lines to Plane
     ax.plot([lyapunov_lambda[i], lyapunov_lambda[i]], 
-            [entropy_h[i], entropy_h[i]], 
+            [entropy_h_net[i], entropy_h_net[i]], 
             [0, topological_t[i]], 
             color=palette[i], linestyle='--', linewidth=1.1, alpha=0.5)
 
-    # Wall Projections (Perspective Depth)
-    ax.plot([lyapunov_lambda[i], lyapunov_lambda[i]], 
-            [2.67, entropy_h[i]], 
-            [topological_t[i], topological_t[i]], 
-            color=palette[i], linestyle=':', linewidth=0.8, alpha=0.3)
-    
-    ax.plot([0.1, lyapunov_lambda[i]], 
-            [entropy_h[i], entropy_h[i]], 
-            [topological_t[i], topological_t[i]], 
-            color=palette[i], linestyle=':', linewidth=0.8, alpha=0.3)
-
-# Axis labels utilizing LaTeX for formal notation
-ax.set_xlabel(r'Dynamical Instability (\lambda_{max})', labelpad=12)
-ax.set_ylabel(r'Shannon Entropy (H)', labelpad=12)
+# Axis labels with LaTeX notation
+ax.set_xlabel(r'Dynamical Instability (lambda_max)', labelpad=12)
+ax.set_ylabel(r'Network Entropy (H_net)', labelpad=12) # cite: 276
 ax.set_zlabel(r'Topological Integrity Ratio (T)', labelpad=12)
-ax.set_title('Diagnostic Manifold: LET Regime Transition Analysis')
+ax.set_title('LET Diagnostic Manifold: Regime Transition Analysis')
 
-# Calibration of axis limits and ticks
+# Calibrated Limits for Stability Gap Visualization
 ax.set_xlim(0.1, 0.65)
-ax.set_ylim(2.65, 2.67)
+ax.set_ylim(0.7, 1.1) # Adjusted for H_net scale
 ax.set_zlim(0, 1.1)
-ax.set_xticks(np.arange(0.1, 0.7, 0.1))
-# Viewing angle optimized for Stability Gap visualization
 ax.view_init(elev=22, azim=38)
-
-# Legend formatting (Decoupled layout)
-ax.legend(loc='upper left', bbox_to_anchor=(0.05, 0.9),
-          frameon=False, labelspacing=1.5, handletextpad=0.6)
-# Annotation of the Stability Corridor
-ax.text(0.16, 2.662, 0.95, "Physiological Corridor", color='#455A64',
-        fontsize=9, style='italic', alpha=0.8)
+ax.legend(loc='upper left', frameon=False)
+ax.text(0.16, 0.82, 0.95, "Physiological Corridor", color='#455A64', 
+        fontsize=9, style='italic', alpha=0.8) # cite: 313, 340
 
 plt.tight_layout()
-plt.savefig('LET_Manifold_Final_Export.png', bbox_inches='tight')
 plt.show()
