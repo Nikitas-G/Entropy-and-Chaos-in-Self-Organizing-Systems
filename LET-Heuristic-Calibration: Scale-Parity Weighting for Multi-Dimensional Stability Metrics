@@ -1,0 +1,78 @@
+import numpy as np
+import matplotlib.pyplot as plt
+
+# -- 1. Parameter Initialization ---
+# Target stability attractor derived from healthy control means [cite: 264]
+lambda_target = 0.1245  
+# Healthy Cohort Baseline (n=34) [cite: 183, 234]
+h_lambda = 0.5597
+h_entropy_net = 0.81   # Network Topology Entropy (H_net)
+h_topology_inv = 1.0   # 1/T where T=1.0 [cite: 183]
+
+# Patient Cohort Data (n=29) [cite: 183, 235]
+p_lambda = 0.5626
+p_entropy_net = 0.98
+p_topology_inv = 1.0 / 0.383 # Caudal fragility transfer (1/T) [cite: 183, 251]
+
+# --- 2. Heuristic Scale-Parity Calibration ---
+# Objective: Balance the contribution of each term to the Global Risk Score (J)
+# Calculate raw terms for the healthy baseline
+term1_raw = (h_lambda - lambda_target)**2
+term2_raw = h_entropy_net
+term3_raw = h_topology_inv
+
+# Target equal contribution (e.g., 500 units per metric) to prevent scale bias
+target_val = 500 
+
+w1 = target_val / term1_raw
+w2 = target_val / term2_raw
+w3 = target_val / term3_raw
+
+# --- 3. Risk Score (J) Computation ---
+def compute_risk_score(l, e, t_inv, w1, w2, w3):
+    """Calculates the Global Risk Score J based on the LET framework."""
+    return w1 * (l - lambda_target)**2 + w2 * e + w3 * t_inv
+
+j_healthy = compute_risk_score(h_lambda, h_entropy_net, h_topology_inv, w1, w2, w3)
+j_patient = compute_risk_score(p_lambda, p_entropy_net, p_topology_inv, w1, w2, w3)
+stability_gap = j_patient - j_healthy
+
+# --- 4. Results Reporting ---
+print(f"--- Calibration Weights ---")
+print(f"w1 (Dynamical Stability): {w1:.2f}")
+print(f"w2 (Network Entropy):    {w2:.2f}")
+print(f"w3 (Topology Integrity): {w3:.2f}\n")
+
+print(f"--- Diagnostic Results ---")
+print(f"J (Healthy Baseline): {j_healthy:.2f}")
+print(f"J (Patient State):    {j_patient:.2f}")
+print(f"Stability Gap:        {stability_gap:.2f}\n")
+# --- 5. Weight Sensitivity Audit ---
+# Verify stability of the diagnostic gap under +/- 20% weight perturbation
+perturbations = np.linspace(0.8, 1.2, 5)
+gap_sensitivity = []
+
+for p in perturbations:
+    g = compute_risk_score(p_lambda, p_entropy_net, p_topology_inv, w1*p, w2*p, w3*p) - \
+        compute_risk_score(h_lambda, h_entropy_net, h_topology_inv, w1*p, w2*p, w3*p)
+    gap_sensitivity.append(g)
+
+# --- 6. Visual Validation -
+plt.figure(figsize=(12, 5))
+
+# Plot A: Risk Score Comparison
+plt.subplot(1, 2, 1)
+plt.bar(['Healthy', 'Patient'], [j_healthy, j_patient], color=['#2E7D32', '#C62828'], alpha=0.8)
+plt.title('Regime Differentiation (J-Score)')
+plt.ylabel('Global Risk Score (J)')
+
+# Plot B: Sensitivity Audit
+plt.subplot(1, 2, 2)
+plt.plot(perturbations, gap_sensitivity, marker='s', color='#1565C0', linewidth=1.5)
+plt.axhline(stability_gap, color='grey', linestyle='--', alpha=0.5)
+plt.title('Weight Sensitivity Audit')
+plt.xlabel('Perturbation Factor (0.8x to 1.2x)')
+plt.ylabel('Stability Gap (J_patient - J_healthy)')
+
+plt.tight_layout()
+plt.show()
