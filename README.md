@@ -1,40 +1,25 @@
-LET-Spine: Computational Framework for Cervical Regime Analysis
-This repository provides the implementation of the Lyapunov-Entropy-Topology (LET) framework, 
-a multi-objective diagnostic suite for quantifying spinal stability and Adjacent Segment Disease (ASD) risk.
+LET-Spine: Analyzing Cervical Stability
+This repository contains the computational tools for the LET (Lyapunov-Entropy-Topology) framework. 
+The goal of this system is to quantify cervical spine stability and assess the risk of Adjacent Segment Disease (ASD).
 
-Framework Overview
-The LET framework maps kinematic trajectories into a three-dimensional diagnostic manifold to identify transitions between physiological and pathological regimes. 
-Core Indicators
-Dynamical Instability (λmax): Local stability assessment via the Largest Lyapunov Exponent.
-Informational Complexity (H): Quantification of regularity loss through Shannon Entropy.
-Topological Fragility (T): Structural integrity analysis via the Stress Riser Ratio and algebraic connectivity.
+The framework evaluates spinal motion across three primary axes:
 
-Repository Architecture
-The suite consists of two primary computational modules:
+Dynamical Instability (λmax): Measures how sensitive the motion is to perturbations.
 
-LET_Diagnostic_Framework
-Executes state-space reconstruction using time-delay embedding.
-Projects the Dynamic Integrity State Vector M(t) onto the diagnostic landscape.
-Identifies the "Stability Gap" between the physiological attractor and pathological states.
+Informational Complexity (H): Tracks the loss of movement regularity and coordination.
 
-LET Clinical Validation Report
-Performs Monte Carlo bootstrapping (n=1,000) for statistical robustness.
-Calculates the Global Risk Score (J) with associated confidence intervals.
-Validates the PSO-based navigability of the diagnostic landscape.
+Topological Fragility (T): Analyzes the structural integrity and load distribution of the vertebral segments.
 
-LET-Spine: Lyapunov-Entropy-Topology Framework for Cervical Stability Analysis
-Implementation of the LET (Lyapunov-Entropy-Topology) diagnostic suite for quantifying self-organization and structural integrity in cervical spine kinematics. This framework maps nonlinear dynamical stability (λmax), informational complexity (H), and spectral graph connectivity (T) onto a unified manifold to identify pathological regime shifts and Adjacent Segment Disease (ASD) risk factors.
+Repository Modules
 
-LET-Heuristic-Calibration: Scale-Parity Weighting for Multi-Dimensional Stability Metrics
-A computational utility for calibrating weighting coefficients in the Lyapunov-Entropy-Topology (LET) Risk Score (J). This script implements a heuristic scale-parity approach to normalize contributions from nonlinear dynamical stability (λmax), network topology entropy (Hnet), and structural connectivity (λ2). Validated using the Branney-Breen cervical spine kinematics dataset, the algorithm identifies the "Stability Gap" between physiological and pathological regimes while ensuring robustness through a weight sensitivity audit.
+1. LET_Diagnostic_Framework
+This is the core engine of the study. It processes kinematic time-series to map the "Stability Gap", the mathematical distance between healthy physiological movement and pathological states.
+2. LET-Monte-Carlo-Simulation
+This script runs the analysis 1,000 times using random data variations (bootstrapping). It serves as a statistical audit to prove that the results are robust and not caused by measurement noise.
+3. LET-Heuristic-Calibration
+A utility to tune the weights (w_1, w_2, w_3) of the Risk Score (J). It ensures scale parity, meaning that instability, entropy, and topology all contribute fairly to the final score without one metric dominating the others due to its numerical range.
 
 Key Empirical Results
-Validation using the Branney-Breen dataset identified a distinct pathological signature:
-Global Risk Score (J): 2351.55±4.89.
-Pathological Stress Riser Ratio: 0.383, indicating significant topological stiffening.
-Regime Shift: Observed drift toward λmax≈ 0.56 and decreased entropy (H≈2.65).
-
-Implementation
-The scripts are optimized for high-dimensional kinematic time-series analysis.
-Input: Multi-segmental translation and angular data.
-Output: Comprehensive clinical diagnostic reports and 3D manifold visualizations.
+Validation using the Branney-Breen clinical dataset (N=63) identified a clear pathological signature:
+Global Risk Score (J): Approximately 2417.11 for patients vs. ~1500 for healthy controls.
+Stress Riser Ratio (T): 0.383 in flexion, indicating a significant loss of structural integrity at the C6-C7 level.
