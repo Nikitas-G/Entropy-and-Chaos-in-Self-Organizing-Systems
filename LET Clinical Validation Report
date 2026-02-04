@@ -3,68 +3,97 @@ import numpy as np
 from scipy.stats import entropy
 import os
 
-class LETValidationReport:
+class LETDiagnosticEngine:
     """
-    Automated validation tool for Lyapunov-Entropy-Topology metrics.
-    Calculates cohort-level diagnostic outcomes from raw clinical datasets.
+    Core engine for the Lyapunov-Entropy-Topology (LET) framework.
+    Calculates multi-dimensional integrity metrics from spinal kinematic datasets.
     """
     def __init__(self):
-        self.L_TARGET = 0.1245  # Physiological stability attractor target
+        # Academic Constants (Refer to Section 3.8 & Equation 15)
+        self.LAMBDA_TARGET = 0.1245  # Physiological stability attractor
+        self.W1 = 2640.0             # Weight: Dynamical Instability
+        self.W2 = 617.0              # Weight: Informational Complexity
+        self.W3 = 500.0              # Weight: Topological Integrity
         
-        # Load demographic identifiers
-        self.demo = pd.read_csv('Database Demographics.csv', sep=';', encoding='latin1')
-        self.demo.columns = self.demo.columns.str.strip()
-        
-        # Segment participants into Control (C) and Patient (P) cohorts
-        self.hv_ids = self.demo[self.demo['Participant Type'] == 'C']['Participant Number'].astype(str).tolist()
-        self.p_ids = self.demo[self.demo['Participant Type'] == 'P']['Participant Number'].astype(str).tolist()
+        # Data Environment Setup
+        self._load_demographics()
+    def _load_demographics(self):
+        """Loads participant metadata and cohort identifiers."""
+        try:
+            demo = pd.read_csv('Database Demographics.csv', sep=';', encoding='latin1')
+            demo.columns = demo.columns.str.strip()
+            self.hv_ids = demo[demo['Participant Type'] == 'C']['Participant Number'].astype(str).tolist()
+            self.p_ids = demo[demo['Participant Type'] == 'P']['Participant Number'].astype(str).tolist()
+        except FileNotFoundError:
+            print("Warning: Demographics file not found. Ensure 'Database Demographics.csv' is in path.")
 
-    def analyze_dynamics(self, filename, ids):
-        """Processes time-series to estimate mean LLE and Shannon Entropy."""
+    def compute_dynamics(self, filename, cohort_ids):
+        """
+        Estimates Lyapunov Exponents and Shannon Entropy.
+        Corresponds to Equations 4 and 7 in the LET framework.
+        """
         df = pd.read_csv(filename, sep=';', encoding='latin1')
-        cols = [c for c in df.columns if any(str(idx) in str(c) for idx in ids)]
+        valid_cols = [c for c in df.columns if any(str(idx) in str(c) for idx in cohort_ids)]
         
-        lle_results, h_results = [], []
-        for col in cols:
+        lle_acc, h_acc = [], []
+        for col in valid_cols:
             data = pd.to_numeric(df[col], errors='coerce').dropna().values
             if len(data) > 10:
-                # Equation 4: Short-term Lyapunov Exponent estimation
+                # LLE Estimation (Short-term divergence proxy)
                 lle = np.mean(np.log(np.abs(np.diff(data)) + 1e-9)) * -0.1
-                
-                # Equation 7: Shannon Entropy based on state occupancy probability
+                # Shannon Entropy (State occupancy probability)
                 counts, _ = np.histogram(data, bins=15, density=True)
                 h = entropy(counts[counts > 0])
                 
-                lle_results.append(lle)
-                h_results.append(h)
+                lle_acc.append(lle)
+                h_acc.append(h)
                 
-        return np.nanmean(lle_results), np.nanmean(h_results)
-
-    def get_topological_fragility(self, filename):
-        """Estimates translation-based fragility (standard deviation noise)."""
+        return np.nanmean(lle_acc), np.nanmean(h_acc)
+    def compute_topological_integrity(self, filename):
+        """
+        Calculates the Stress Riser Ratio (T) based on translation variance.
+        Directly supports Table 1 and Figure 3.
+        """
         df = pd.read_csv(filename, sep=';', encoding='latin1')
         hv_cols = [c for c in df.columns if any(str(idx) in str(c) for idx in self.hv_ids)]
         p_cols = [c for c in df.columns if any(str(idx) in str(c) for idx in self.p_ids)]
         
-        hv_fragility = np.nanmean([pd.to_numeric(df[c], errors='coerce').std() for c in hv_cols])
-        p_fragility = np.nanmean([pd.to_numeric(df[c], errors='coerce').std() for c in p_cols])
+        hv_baseline = np.nanmean([pd.to_numeric(df[c], errors='coerce').std() for c in hv_cols])
+        p_variation = np.nanmean([pd.to_numeric(df[c], errors='coerce').std() for c in p_cols])
         
-        return hv_fragility, p_fragility
-# --- Execution Block ---
-report_engine = LETValidationReport()
+        return p_variation / hv_baseline  # Topological Integrity Ratio (T)
 
-# 1. Kinematic Analysis (Angular and Vertical signals)
-flex_lle, flex_h = report_engine.analyze_dynamics('Flexion Vert-Angle.csv', report_engine.p_ids)
-ext_lle, ext_h = report_engine.analyze_dynamics('Extension Disc Height.csv', report_engine.p_ids)
+    def calculate_risk_score(self, lle, h, t_ratio):
+        """
+        Computes the Global Risk Score (J) using scale-parity weights.
+        Refers to Equation 15: J = w1(λ - λ_target)^2 + w2(H) + w3(1/T)
+        """
+        term_instability = self.W1 * (lle - self.LAMBDA_TARGET)**2
+        term_complexity = self.W2 * h
+        term_topology = self.W3 * (1.0 / t_ratio)
+        
+        return term_instability + term_complexity + term_topology
 
-# 2. Topological Analysis (Translation signals)
-f_hv_f, f_p_f = report_engine.get_topological_fragility('Flexion Translation.csv')
-e_hv_f, e_p_f = report_engine.get_topological_fragility('Extension Translation.csv')
-# Output Generation
-print("--- FINAL DIAGNOSTIC INTEGRITY REPORT ---")
-# Equation 15: Multi-objective Risk Score Calculation
-print(f"Flexion Risk Score (J): {1000*(flex_lle-0.1245)**2 + 500*flex_h + 833.33:.2f}")
-print(f"Extension Risk Score (J): {1000*(ext_lle-0.1245)**2 + 500*ext_h + 833.33:.2f}")
+# --- Main Validation Script ---
+if __name__ == "__main__":
+    engine = LETDiagnosticEngine()
 
-# Stress Riser identification
-print(f"Extension Stress Riser Ratio: {e_p_f/e_hv_f:.2f}")
+    # Step 1: Kinematic and Dynamical Analysis
+    f_lle, f_h = engine.compute_dynamics('Flexion Vert-Angle.csv', engine.p_ids)
+    e_lle, e_h = engine.compute_dynamics('Extension Disc Height.csv', engine.p_ids)
+
+    # Step 2: Topological Integrity Ratio Calculation
+    t_flexion = engine.compute_topological_integrity('Flexion Translation.csv')
+    t_extension = engine.compute_topological_integrity('Extension Translation.csv')
+
+    # Step 3: Global Risk Score Generation
+    j_flexion = engine.calculate_risk_score(f_lle, f_h, t_flexion)
+    j_extension = engine.calculate_risk_score(e_lle, e_h, t_extension)
+    print("-" * 40)
+    print("LET DIAGNOSTIC INTEGRITY REPORT")
+    print("-" * 40)
+    print(f"Flexion Risk Score (J):     {j_flexion:.2f}")
+    print(f"Extension Risk Score (J):   {j_extension:.2f}")
+    print(f"Stress Riser Ratio (T_flex): {t_flexion:.3f}")
+    print(f"Stress Riser Ratio (T_ext):  {t_extension:.3f}")
+    print("-" * 40)
